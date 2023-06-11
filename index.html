@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/web3@4.0.1/dist/web3.min.js"></script>
+</head>
+
+<body>
+    
+    <script>
+        window.addEventListener('load', function() {
+            // Web3 인스턴스 생성
+            if (typeof web3 !== 'undefined') {
+                web3 = new Web3(web3.currentProvider);
+            } else {
+                // MetaMask를 통해 연결
+                web3 = new Web3(window.ethereum);
+            }
+
+            // 메타마스크 사용자 계정 요청
+            window.ethereum.enable().then(function(accounts) {
+                web3.eth.defaultAccount = accounts[0];
+            }).catch(function(error) {
+                console.error(error);
+            });
+
+            // 스마트 컨트랙트 ABI (Application Binary Interface) 정의
+            var abi = [
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "_CandidateAlreadySet",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "_CandidateNotVoteSelf",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "_VoteAlready",
+		"type": "error"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "candidateName",
+				"type": "string"
+			}
+		],
+		"name": "_addCandidate",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "live",
+				"type": "bool"
+			}
+		],
+		"name": "_finishVote",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "candidate",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "upVote",
+				"type": "uint256"
+			}
+		],
+		"name": "_upVote",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			}
+		],
+		"name": "_voting",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_address",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
+			}
+		],
+		"name": "candidateAdd",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "finishVote",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "showCandidate",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "string",
+						"name": "candidateName",
+						"type": "string"
+					},
+					{
+						"internalType": "address",
+						"name": "candidateAddress",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "upVote",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct Vote.candidate[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "showVoter",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "id",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					},
+					{
+						"internalType": "address",
+						"name": "voterAddress",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "candidateAddress",
+						"type": "address"
+					}
+				],
+				"internalType": "struct Vote.voter[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "candidateAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_voterAddress",
+				"type": "address"
+			}
+		],
+		"name": "voteSet",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+];
+
+            // 스마트 컨트랙트 주소
+            var contractAddress = "0xD51a7EDC6DB3b8CC6d50631a27aBF2D437657fdF";
+
+            // 스마트 컨트랙트 인스턴스 생성
+            var contract = new web3.eth.Contract(abi, contractAddress);
+
+            // 후보자 추가 폼 submit 이벤트 처리
+            var addCandidateForm = document.getElementById("addCandidateForm");
+            addCandidateForm.addEventListener("submit", function(event) {
+                event.preventDefault(); // 폼 제출 기본 동작 방지
+
+                var candidateName = document.getElementById("candidateName").value;
+                var candidateAddress = document.getElementById("candidateAddress").value;
+
+                // 스마트 컨트랙트의 candidateAdd 함수 호출
+                contract.methods.candidateAdd(candidateAddress, candidateName)
+                    .send({ from: web3.eth.defaultAccount, gas: 200000 })
+                    .then(function(result) {
+                        console.log(result); // 트랜잭션 결과 출력
+                    })
+                    .catch(function(error) {
+                        console.error(error); // 에러 처리
+                    });
+            });
+
+            // 투표 폼 submit 이벤트 처리
+            var voteForm = document.getElementById("voteForm");
+            voteForm.addEventListener("submit", function(event) {
+                event.preventDefault(); // 폼 제출 기본 동작 방지
+
+                var voterId = parseInt(document.getElementById("voterId").value);
+                var voterName = document.getElementById("voterName").value;
+                var candidateAddress = document.getElementById("candidateAddress").value;
+
+                // 스마트 컨트랙트의 voteSet 함수 호출
+                contract.methods.voteSet(voterId, voterName, candidateAddress)
+                    .send({ from: web3.eth.defaultAccount, gas: 200000 })
+                    .then(function(result) {
+                        console.log(result); // 트랜잭션 결과 출력
+                    })
+                    .catch(function(error) {
+                        console.error(error); // 에러 처리
+                    });
+            });
+
+            // 투표 종료 버튼 클릭 이벤트 처리
+            var finishButton = document.getElementById("finishButton");
+            finishButton.addEventListener("click", function() {
+            // 스마트 컨트랙트의 finishVote 함수 호출
+            contract.methods.finishVote()
+                .send({ from: web3.eth.defaultAccount, gas: 200000 })
+                .then(function(result) {
+                    console.log(result); // 트랜잭션 결과 출력
+                })
+                .catch(function(error) {
+                    console.error(error); // 에러 처리
+                });
+        });
+
+        // 계정 정보 설정 (계정 주소와 비밀번호 또는 프라이빗 키)
+        // 이전 버전의 코드에서 web3.eth.defaultAccount는 더 이상 사용되지 않습니다.
+        // 대신 window.ethereum.enable() 메소드를 통해 사용자 계정을 요청하고 첫 번째 계정을 선택합니다.
+        // 코드 상단의 window.ethereum.enable() 부분을 참고하세요.
+
+        // ... (생략) ...
+    });
+</script>
+
+<h2>후보자 추가</h2>
+<form id="addCandidateForm">
+    <label for="candidateName">후보자 이름:</label>
+    <input type="text" id="candidateName" name="candidateName" required><br>
+
+    <label for="candidateAddress">후보자 주소:</label>
+    <input type="text" id="candidateAddress" name="candidateAddress" required><br>
+
+    <input type="submit" value="추가">
+</form>
+
+<h2>투표</h2>
+<form id="voteForm">
+    <label for="voterId">투표자 ID:</label>
+    <input type="number" id="voterId" name="voterId" required><br>
+
+    <label for="voterName">투표자 이름:</label>
+    <input type="text" id="voterName" name="voterName" required><br>
+
+    <label for="candidateAddress">투표 대상 후보자 주소:</label>
+    <input type="text" id="candidateAddress" name="candidateAddress" required><br>
+
+    <input type="submit" value="투표">
+</form>
+
+<button id="finishButton">투표 종료</button>
+
+</body>
+</html>
